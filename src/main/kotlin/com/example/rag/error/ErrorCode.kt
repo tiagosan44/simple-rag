@@ -1,0 +1,9 @@
+package com.example.rag.error
+
+enum class ErrorCode {
+    VECTOR_STORE_UNAVAILABLE,
+    EMBEDDING_PROVIDER_UNAVAILABLE,
+    LLM_PROVIDER_UNAVAILABLE,
+    VALIDATION_ERROR,
+    INTERNAL_ERROR
+}

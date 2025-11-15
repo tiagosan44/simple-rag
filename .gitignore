@@ -1,0 +1,50 @@
+# Kotlin / Gradle / Spring Boot
+.gradle/
+build/
+**/build/
+!gradle/wrapper/
+
+# IDEs and editors
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+
+# OS / file system
+.DS_Store
+Thumbs.db
+
+# Logs and temp
+logs/
+**/*.log
+**/*.tmp
+**/*.lock
+/tmp/
+
+# Local environment files (keep examples)
+.env
+.env.*
+!.env.example
+
+# Spring Boot local configs (do not commit developer-specific overrides)
+application-local.yml
+application-*.local.yml
+
+# Test & coverage artifacts
+coverage/
+.jacoco/
+**/test-results/
+**/jacoco.exec
+
+# Docker
+**/.docker/**
+*.pid
+
+# Misc
+out/
+classes/
+*.orig
+*.bak

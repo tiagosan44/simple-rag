@@ -1,0 +1,50 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+rag:
+  embeddingProvider: ${RAG_EMBEDDING_PROVIDER:openai}
+  openai:
+    apiKey: ${OPENAI_API_KEY:}
+    embeddingModel: ${RAG_OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
+    llmModel: ${RAG_OPENAI_LLM_MODEL:gpt-4o-mini}
+    temperature: ${RAG_TEMPERATURE:0.0}
+    maxTokens: ${RAG_MAX_TOKENS:1024}
+  anthropic:
+    apiKey: ${ANTHROPIC_API_KEY:}
+    embeddingModel: ${RAG_ANTHROPIC_EMBEDDING_MODEL:claude-embed-1}
+    llmModel: ${RAG_ANTHROPIC_LLM_MODEL:claude-2}
+
+qdrant:
+  url: ${QDRANT_URL:http://localhost:6333}
+  collection: ${RAG_COLLECTION:rag_demo}
+
+features:
+  authEnabled: ${RAG_AUTH_ENABLED:false}
+  debug: ${RAG_DEBUG:false}
+  forceRecreate: ${FORCE_RECREATE:false}
+
+security:
+  apiKey: ${RAG_API_KEY:}
+  basic:
+    user: ${RAG_BASIC_USER:}
+    pass: ${RAG_BASIC_PASS:}
+
+cors:
+  allowedOrigins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+
+logging:
+  level:
+    root: INFO
+    com.example.rag: ${RAG_LOG_LEVEL:INFO}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,metrics,info"
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  server:
+    port: ${MANAGEMENT_SERVER_PORT:${SERVER_PORT:8080}}

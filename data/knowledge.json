@@ -1,0 +1,12 @@
+[
+  { "id": "doc-1", "text": "Orders are processed within 24 hours of payment confirmation." },
+  { "id": "doc-2", "text": "Premium customers have priority support and a dedicated manager." },
+  { "id": "doc-3", "text": "We use eventual consistency for order status across microservices." },
+  { "id": "doc-4", "text": "Refunds are issued within 5–7 business days after review." },
+  { "id": "doc-5", "text": "Customer data is encrypted at rest and in transit." },
+  { "id": "doc-6", "text": "Standard support operates Monday to Friday, 9am–6pm local time." },
+  { "id": "doc-7", "text": "The API rate limit is 1000 requests per minute per API key." },
+  { "id": "doc-8", "text": "Service credits are applied automatically on the next billing cycle." },
+  { "id": "doc-9", "text": "All production deployments require approval from at least two maintainers." },
+  { "id": "doc-10", "text": "Incident response aims for an initial update within 15 minutes of detection." }
+]
