@@ -1,0 +1,336 @@
+{
+  "info": {
+    "name": "Qdrant Local Testing",
+    "description": "Collection for testing Qdrant vector database locally. Includes collection management, point operations, and search queries.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "qdrant_url",
+      "value": "http://localhost:6333",
+      "type": "string"
+    },
+    {
+      "key": "collection_name",
+      "value": "rag_demo",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Collection Management",
+      "item": [
+        {
+          "name": "Get Collection Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{qdrant_url}}/collections/{{collection_name}}",
+              "host": ["{{qdrant_url}}"],
+              "path": ["collections", "{{collection_name}}"]
+            },
+            "description": "Retrieves information about the collection including vector size, number of points, and configuration."
+          },
+          "response": []
+        },
+        {
+          "name": "List All Collections",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{qdrant_url}}/collections",
+              "host": ["{{qdrant_url}}"],
+              "path": ["collections"]
+            },
+            "description": "Lists all available collections in Qdrant."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Collection",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vectors\": {\n    \"size\": 1536,\n    \"distance\": \"Cosine\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{qdrant_url}}/collections/{{collection_name}}",
+              "host": ["{{qdrant_url}}"],
+              "path": ["collections", "{{collection_name}}"]
+            },
+            "description": "Creates a new collection with specified vector size (1536 for OpenAI text-embedding-3-small) and cosine distance metric."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Collection",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{qdrant_url}}/collections/{{collection_name}}",
+              "host": ["{{qdrant_url}}"],
+              "path": ["collections", "{{collection_name}}"]
+            },
+            "description": "Deletes the entire collection and all its points. Use with caution!"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Point Operations",
+      "item": [
+        {
+          "name": "Upsert Points (Batch)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"points\": [\n    {\n      \"id\": \"test-1\",\n      \"vector\": [0.1, 0.2, 0.3],\n      \"payload\": {\n        \"original_text\": \"Sample text for testing\",\n        \"source\": \"manual_test\",\n        \"chunk_index\": 0\n      }\n    },\n    {\n      \"id\": \"test-2\",\n      \"vector\": [0.4, 0.5, 0.6],\n      \"payload\": {\n        \"original_text\": \"Another test document\",\n        \"source\": \"manual_test\",\n        \"chunk_index\": 1\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{qdrant_url}}/collections/{{collection_name}}/points?wait=true",
+              "host": ["{{qdrant_url}}"],
+              "path": ["collections", "{{collection_name}}", "points"],
+              "query": [
+                {
+                  "key": "wait",
+                  "value": "true",
+                  "description": "Wait for operation to complete before returning"
+                }
+              ]
+            },
+            "description": "Inserts or updates multiple points with vectors and payloads. Note: vector dimensions must match collection settings (use 1536 for real embeddings)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Point by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{qdrant_url}}/collections/{{collection_name}}/points/test-1",
+              "host": ["{{qdrant_url}}"],
+              "path": ["collections", "{{collection_name}}", "points", "test-1"]
+            },
+            "description": "Retrieves a specific point by its ID, including vector and payload."
+          },
+          "response": []
+        },
+        {
+          "name": "Scroll Points (Paginated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"limit\": 10,\n  \"with_payload\": true,\n  \"with_vector\": false\n}"
+            },
+            "url": {
+              "raw": "{{qdrant_url}}/collections/{{collection_name}}/points/scroll",
+              "host": ["{{qdrant_url}}"],
+              "path": ["collections", "{{collection_name}}", "points", "scroll"]
+            },
+            "description": "Retrieves points in a paginated manner. Useful for browsing all points in the collection."
+          },
+          "response": []
+        },
+        {
+          "name": "Count Points",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exact\": true\n}"
+            },
+            "url": {
+              "raw": "{{qdrant_url}}/collections/{{collection_name}}/points/count",
+              "host": ["{{qdrant_url}}"],
+              "path": ["collections", "{{collection_name}}", "points", "count"]
+            },
+            "description": "Returns the total number of points in the collection."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Points by ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"points\": [\"test-1\", \"test-2\"]\n}"
+            },
+            "url": {
+              "raw": "{{qdrant_url}}/collections/{{collection_name}}/points/delete?wait=true",
+              "host": ["{{qdrant_url}}"],
+              "path": ["collections", "{{collection_name}}", "points", "delete"],
+              "query": [
+                {
+                  "key": "wait",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Deletes specific points by their IDs."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Search & Query",
+      "item": [
+        {
+          "name": "Vector Search",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vector\": [0.1, 0.2, 0.3],\n  \"limit\": 5,\n  \"with_payload\": true,\n  \"with_vector\": false\n}"
+            },
+            "url": {
+              "raw": "{{qdrant_url}}/collections/{{collection_name}}/points/search",
+              "host": ["{{qdrant_url}}"],
+              "path": ["collections", "{{collection_name}}", "points", "search"]
+            },
+            "description": "Performs similarity search using a query vector. Returns top K most similar points. Note: vector dimensions must match collection (use 1536 for real searches)."
+          },
+          "response": []
+        },
+        {
+          "name": "Search with Filter",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vector\": [0.1, 0.2, 0.3],\n  \"limit\": 5,\n  \"filter\": {\n    \"must\": [\n      {\n        \"key\": \"source\",\n        \"match\": {\n          \"value\": \"knowledge.json\"\n        }\n      }\n    ]\n  },\n  \"with_payload\": true\n}"
+            },
+            "url": {
+              "raw": "{{qdrant_url}}/collections/{{collection_name}}/points/search",
+              "host": ["{{qdrant_url}}"],
+              "path": ["collections", "{{collection_name}}", "points", "search"]
+            },
+            "description": "Performs filtered vector search. Returns only points matching the filter criteria (e.g., specific source)."
+          },
+          "response": []
+        },
+        {
+          "name": "Recommend Points",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"positive\": [\"test-1\"],\n  \"negative\": [],\n  \"limit\": 5,\n  \"with_payload\": true\n}"
+            },
+            "url": {
+              "raw": "{{qdrant_url}}/collections/{{collection_name}}/points/recommend",
+              "host": ["{{qdrant_url}}"],
+              "path": ["collections", "{{collection_name}}", "points", "recommend"]
+            },
+            "description": "Finds points similar to positive examples and dissimilar to negative examples. Useful for recommendation systems."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health & Cluster",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{qdrant_url}}/healthz",
+              "host": ["{{qdrant_url}}"],
+              "path": ["healthz"]
+            },
+            "description": "Checks if Qdrant is running and healthy."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Cluster Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{qdrant_url}}/cluster",
+              "host": ["{{qdrant_url}}"],
+              "path": ["cluster"]
+            },
+            "description": "Returns information about the Qdrant cluster status."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Telemetry",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{qdrant_url}}/telemetry",
+              "host": ["{{qdrant_url}}"],
+              "path": ["telemetry"]
+            },
+            "description": "Returns telemetry and usage statistics."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

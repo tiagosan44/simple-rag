@@ -26,8 +26,8 @@ features:
 security:
   apiKey: ${RAG_API_KEY:}
   basic:
-    user: ${RAG_BASIC_USER:}
-    pass: ${RAG_BASIC_PASS:}
+    user: ${RAG_BASIC_USER:dev}
+    pass: ${RAG_BASIC_PASS:devpass}
 
 cors:
   allowedOrigins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}

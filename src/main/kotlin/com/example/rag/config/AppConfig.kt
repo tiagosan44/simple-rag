@@ -37,7 +37,8 @@ data class OpenAIProps(
     var embeddingModel: String = "text-embedding-3-small",
     var llmModel: String = "gpt-4o-mini",
     var temperature: Double = 0.0,
-    var maxTokens: Int = 1024
+    var maxTokens: Int = 1024,
+    var baseUrl: String = "https://api.openai.com/v1"
 )
 
 data class AnthropicProps(
