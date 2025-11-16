@@ -1,0 +1,368 @@
+{
+  "info": {
+    "_postman_id": "f6c2d7b2-57f4-4b9a-8f6c-9e4a3d2e2f10",
+    "name": "RAG Backend — Full Scenarios",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection for the Kotlin Spring Boot RAG backend. Includes multiple scenarios for /api/embed, /api/search, and /api/ask, with public and secured variants (API Key and Basic Auth), and validation error cases."
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "apiKey", "value": "", "type": "string" },
+    { "key": "basicUser", "value": "", "type": "string" },
+    { "key": "basicPass", "value": "", "type": "string" },
+    { "key": "topK", "value": "4", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Public (Auth disabled)",
+      "item": [
+        {
+          "name": "Embed — default (debug=false)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/embed", "host": ["{{baseUrl}}"], "path": ["api","embed"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"hello world\",\n  \"debug\": false\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.expect(json).to.have.property('embedding_id');",
+                  "pm.expect(json).to.have.property('vector_dim');",
+                  "pm.expect(json.vector).to.be.oneOf([undefined, null]);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Embed — debug=true (returns vector)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/embed", "host": ["{{baseUrl}}"], "path": ["api","embed"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"hello world\",\n  \"debug\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.expect(json).to.have.property('vector');",
+                  "pm.expect(Array.isArray(json.vector)).to.eql(true);",
+                  "pm.expect(json.vector.length).to.be.above(1000);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Embed — validation error (empty text)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/embed", "host": ["{{baseUrl}}"], "path": ["api","embed"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"\",\n  \"debug\": false\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.expect(json).to.have.property('error');",
+                  "pm.expect(json.error.code).to.eql('VALIDATION_ERROR');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search — default (top_k=5)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/search", "host": ["{{baseUrl}}"], "path": ["api","search"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"refund policy\",\n  \"top_k\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.expect(json).to.have.property('results');",
+                  "pm.expect(Array.isArray(json.results)).to.eql(true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search — top_k=1",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/search", "host": ["{{baseUrl}}"], "path": ["api","search"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"support hours\",\n  \"top_k\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.expect(json.results.length).to.be.within(0,1);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search — validation error (empty query)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/search", "host": ["{{baseUrl}}"], "path": ["api","search"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"\",\n  \"top_k\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.expect(json.error.code).to.eql('VALIDATION_ERROR');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ask — default (top_k={{topK}}, temperature=0.0)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/ask", "host": ["{{baseUrl}}"], "path": ["api","ask"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What is our refund policy?\",\n  \"top_k\": {{topK}},\n  \"temperature\": 0.0\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.expect(json).to.have.property('answer');",
+                  "pm.expect(json).to.have.property('source_chunks');",
+                  "pm.expect(json).to.have.property('prompt');",
+                  "pm.expect(json).to.have.property('latency_ms');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ask — larger top_k (8)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/ask", "host": ["{{baseUrl}}"], "path": ["api","ask"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"Tell me about premium customer support\",\n  \"top_k\": 8,\n  \"temperature\": 0.0\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.expect(json.source_chunks).to.be.an('array');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ask — validation error (empty question)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/ask", "host": ["{{baseUrl}}"], "path": ["api","ask"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"\",\n  \"top_k\": 4\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.expect(json.error.code).to.eql('VALIDATION_ERROR');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Secured — API Key (X-API-Key)",
+      "item": [
+        {
+          "name": "Embed (API Key)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/embed", "host": ["{{baseUrl}}"], "path": ["api","embed"] },
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"hello world\",\n  \"debug\": false\n}" }
+          }
+        },
+        {
+          "name": "Search (API Key)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/search", "host": ["{{baseUrl}}"], "path": ["api","search"] },
+            "body": { "mode": "raw", "raw": "{\n  \"query\": \"refund policy\",\n  \"top_k\": 5\n}" }
+          }
+        },
+        {
+          "name": "Ask (API Key)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/ask", "host": ["{{baseUrl}}"], "path": ["api","ask"] },
+            "body": { "mode": "raw", "raw": "{\n  \"question\": \"What is our refund policy?\",\n  \"top_k\": 4,\n  \"temperature\": 0.0\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Secured — Basic Auth",
+      "item": [
+        {
+          "name": "Embed (Basic)",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{basicUser}}", "type": "string" },
+                { "key": "password", "value": "{{basicPass}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/api/embed", "host": ["{{baseUrl}}"], "path": ["api","embed"] },
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"hello world\",\n  \"debug\": false\n}" }
+          }
+        },
+        {
+          "name": "Search (Basic)",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{basicUser}}", "type": "string" },
+                { "key": "password", "value": "{{basicPass}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/api/search", "host": ["{{baseUrl}}"], "path": ["api","search"] },
+            "body": { "mode": "raw", "raw": "{\n  \"query\": \"refund policy\",\n  \"top_k\": 5\n}" }
+          }
+        },
+        {
+          "name": "Ask (Basic)",
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{basicUser}}", "type": "string" },
+                { "key": "password", "value": "{{basicPass}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/api/ask", "host": ["{{baseUrl}}"], "path": ["api","ask"] },
+            "body": { "mode": "raw", "raw": "{\n  \"question\": \"What is our refund policy?\",\n  \"top_k\": 4,\n  \"temperature\": 0.0\n}" }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@ package com.example.rag.service
 
 import com.example.rag.config.OpenAIProps
 import com.example.rag.model.EmbeddingResult
+import com.example.rag.util.defaultRetryPolicy
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.security.MessageDigest
@@ -15,7 +16,8 @@ interface EmbeddingService {
 
 @Service
 class EmbeddingServiceImpl(
-    private val openAIProps: OpenAIProps
+    private val openAIProps: OpenAIProps,
+    private val webClient: org.springframework.web.reactive.function.client.WebClient
 ) : EmbeddingService {
     private val log = LoggerFactory.getLogger(EmbeddingServiceImpl::class.java)
 
@@ -37,16 +39,59 @@ class EmbeddingServiceImpl(
             }
         }
 
-        // Placeholder: hash-based deterministic embedding fallback
+        // Try OpenAI embeddings first if apiKey is set; fallback to hash embedding on failure
+        return try {
+            if (openAIProps.apiKey.isBlank()) {
+                log.debug("OPENAI_API_KEY not set, using fallback embedding")
+                fallbackEmbedding(text, now)
+            } else {
+                val result = callOpenAIEmbedding(text)
+                synchronized(cache) { cache[text] = now to result }
+                result
+            }
+        } catch (e: Exception) {
+            log.warn("OpenAI embedding failed, using fallback. cause={}", e.toString())
+            val res = fallbackEmbedding(text, now)
+            synchronized(cache) { cache[text] = now to res }
+            res
+        }
+    }
+
+    private fun fallbackEmbedding(text: String, nowMillis: Long): EmbeddingResult {
         val vector = hashEmbedding(text, 1536)
-        val res = EmbeddingResult(
+        return EmbeddingResult(
             id = generateId(text),
             vector = vector,
             model = openAIProps.embeddingModel,
+            createdAtIso = DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochMilli(nowMillis))
+        )
+    }
+
+    private fun callOpenAIEmbedding(text: String): EmbeddingResult {
+        val req = mapOf(
+            "model" to openAIProps.embeddingModel,
+            "input" to text
+        )
+        val start = System.currentTimeMillis()
+        val resp = webClient.post()
+            .uri("${openAIProps.baseUrl}/embeddings")
+            .header("Authorization", "Bearer ${openAIProps.apiKey}")
+            .header("Content-Type", "application/json")
+            .bodyValue(req)
+            .retrieve()
+            .bodyToMono(OpenAIEmbeddingResponse::class.java)
+            .retryWhen(defaultRetryPolicy())
+            .block() ?: throw RuntimeException("Empty response from OpenAI embeddings")
+
+        if (resp.data.isEmpty()) throw RuntimeException("No embedding data")
+        val vector = resp.data[0].embedding.map { it.toFloat() }.toFloatArray()
+        val now = if (resp.created != null) resp.created!! * 1000L else start
+        return EmbeddingResult(
+            id = generateId(text),
+            vector = vector,
+            model = resp.model ?: openAIProps.embeddingModel,
             createdAtIso = DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochMilli(now))
         )
-        synchronized(cache) { cache[text] = now to res }
-        return res
     }
 
     private fun generateId(text: String): String {
@@ -70,3 +115,17 @@ class EmbeddingServiceImpl(
         return arr
     }
 }
+
+
+// --- OpenAI DTOs for Embeddings ---
+private data class OpenAIEmbeddingResponse(
+    val data: List<EmbeddingItem> = emptyList(),
+    val model: String? = null,
+    val created: Long? = null
+)
+
+private data class EmbeddingItem(
+    val embedding: List<Double> = emptyList(),
+    val index: Int? = null,
+    val `object`: String? = null
+)
