@@ -107,17 +107,17 @@ class QdrantVectorStoreService(
 
     override fun upsert(points: List<QdrantPoint>) {
         if (points.isEmpty()) return
-        
+
         // Validate points before sending
         points.firstOrNull()?.let { firstPoint ->
             if (firstPoint.vector.isEmpty()) {
                 log.error("Cannot upsert point with empty vector: id={}", firstPoint.id)
                 throw VectorStoreUnavailable("Point has empty vector", mapOf("point_id" to firstPoint.id.toString()))
             }
-            log.debug("Upserting {} points, first vector size={}, first_id={}", 
+            log.debug("Upserting {} points, first vector size={}, first_id={}",
                 points.size, firstPoint.vector.size, firstPoint.id)
         }
-        
+
         val upsertReq = QdrantUpsertRequest(
             points = points.map {
                 QdrantUpsertPoint(
@@ -135,8 +135,8 @@ class QdrantVectorStoreService(
                 .bodyToMono(QdrantOpResult::class.java)
                 .doOnError { error ->
                     if (error is org.springframework.web.reactive.function.client.WebClientResponseException) {
-                        log.error("Qdrant upsert error BEFORE retry: status={}, body={}, points_count={}, first_point_id={}, vector_size={}", 
-                            error.statusCode.value(), 
+                        log.error("Qdrant upsert error BEFORE retry: status={}, body={}, points_count={}, first_point_id={}, vector_size={}",
+                            error.statusCode.value(),
                             error.responseBodyAsString.take(500),
                             points.size,
                             points.firstOrNull()?.id,
@@ -147,8 +147,8 @@ class QdrantVectorStoreService(
                 .retryWhen(defaultRetryPolicy())
                 .block()
         } catch (e: org.springframework.web.reactive.function.client.WebClientResponseException) {
-            log.error("Qdrant upsert failed with status={}, body={}, points_count={}, first_point_id={}, vector_size={}", 
-                e.statusCode.value(), 
+            log.error("Qdrant upsert failed with status={}, body={}, points_count={}, first_point_id={}, vector_size={}",
+                e.statusCode.value(),
                 e.responseBodyAsString.take(500),
                 points.size,
                 points.firstOrNull()?.id,
