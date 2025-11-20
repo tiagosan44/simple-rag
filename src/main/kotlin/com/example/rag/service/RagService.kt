@@ -3,6 +3,7 @@ package com.example.rag.service
 import com.example.rag.config.OpenAIProps
 import com.example.rag.model.AskResponse
 import com.example.rag.model.SourceChunk
+import com.example.rag.model.*
 import org.springframework.stereotype.Service
 
 interface RagService {
@@ -102,30 +103,3 @@ class RagServiceImpl(
         }
     }
 }
-
-// --- OpenAI Chat DTOs & helper ---
-private data class OpenAIChatRequest(
-    val model: String,
-    val messages: List<OpenAIMessage>,
-    val temperature: Double = 0.0,
-    val max_tokens: Int = 1024
-)
-private data class OpenAIMessage(val role: String, val content: String)
-private data class OpenAIChatResponse(
-    val id: String? = null,
-    val model: String? = null,
-    val choices: List<OpenAIChoice> = emptyList(),
-    val usage: OpenAIUsage? = null
-)
-private data class OpenAIChoice(val index: Int? = null, val message: OpenAIMessage? = null)
-private data class OpenAIUsage(
-    val prompt_tokens: Int? = null,
-    val completion_tokens: Int? = null,
-    val total_tokens: Int? = null
-)
-private data class LlmResult(
-    val messageContent: String?,
-    val raw: String?,
-    val model: String?,
-    val usage: com.example.rag.model.Usage?
-)

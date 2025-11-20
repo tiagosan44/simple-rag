@@ -2,6 +2,7 @@ package com.example.rag.service
 
 import com.example.rag.config.OpenAIProps
 import com.example.rag.model.EmbeddingResult
+import com.example.rag.model.*
 import com.example.rag.util.defaultRetryPolicy
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -115,17 +116,3 @@ class EmbeddingServiceImpl(
         return arr
     }
 }
-
-
-// --- OpenAI DTOs for Embeddings ---
-private data class OpenAIEmbeddingResponse(
-    val data: List<EmbeddingItem> = emptyList(),
-    val model: String? = null,
-    val created: Long? = null
-)
-
-private data class EmbeddingItem(
-    val embedding: List<Double> = emptyList(),
-    val index: Int? = null,
-    val `object`: String? = null
-)

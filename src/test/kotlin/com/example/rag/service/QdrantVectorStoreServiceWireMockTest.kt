@@ -37,7 +37,8 @@ class QdrantVectorStoreServiceWireMockTest {
         val props = QdrantProps(url = "http://localhost:${wm.port()}", collection = "rag_test")
         val features = FeatureFlags(authEnabled = false, debug = false, forceRecreate = forceRecreate)
         val webClient = WebClient.builder().build()
-        return QdrantVectorStoreService(webClient, props, features)
+        val qdrantHttpClient = QdrantHttpClient(webClient, props)
+        return QdrantVectorStoreService(qdrantHttpClient, props, features)
     }
 
     @Test
