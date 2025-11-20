@@ -5,13 +5,10 @@ import com.example.rag.config.FeatureFlags
 import com.example.rag.error.VectorStoreUnavailable
 import com.example.rag.model.QdrantPoint
 import com.example.rag.model.RetrievedChunk
-import com.example.rag.util.defaultRetryPolicy
+import com.example.rag.model.*
 import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Service
-import org.springframework.web.reactive.function.client.WebClient
-import reactor.core.publisher.Mono
-
 /**
  * Qdrant REST-backed implementation of VectorStoreService.
  * Uses cosine distance with normalized 0..1 scores.
@@ -19,7 +16,7 @@ import reactor.core.publisher.Mono
 @Primary
 @Service
 class QdrantVectorStoreService(
-    private val webClient: WebClient,
+    private val qdrantHttpClient: QdrantHttpClient,
     private val props: QdrantProps,
     private val features: FeatureFlags
 ) : VectorStoreService {
@@ -28,13 +25,7 @@ class QdrantVectorStoreService(
 
     override fun initCollection(vectorSize: Int) {
         // Check collection
-        val exists = webClient.get()
-            .uri("${props.url}/collections/${props.collection}")
-            .retrieve()
-            .bodyToMono(QdrantCollectionInfo::class.java)
-            .map { true }
-            .onErrorResume { Mono.just(false) }
-            .block() ?: false
+        val exists = qdrantHttpClient.checkCollectionExists()
 
         if (!exists) {
             createCollection(vectorSize)
@@ -43,12 +34,7 @@ class QdrantVectorStoreService(
 
         // Verify vector size
         try {
-            val info = webClient.get()
-                .uri("${props.url}/collections/${props.collection}")
-                .retrieve()
-                .bodyToMono(QdrantCollectionInfo::class.java)
-                .retryWhen(defaultRetryPolicy())
-                .block()
+            val info = qdrantHttpClient.getCollectionInfo()
             val current = info?.result?.vectors?.size ?: vectorSize
             if (current != vectorSize) {
                 val msg = "Qdrant collection vector size mismatch: have=$current expected=$vectorSize"
@@ -68,24 +54,8 @@ class QdrantVectorStoreService(
     }
 
     private fun createCollection(vectorSize: Int) {
-        val body = mapOf(
-            "vectors" to mapOf(
-                "size" to vectorSize,
-                "distance" to "Cosine"
-            ),
-            "hnsw_config" to mapOf(
-                "m" to 16,
-                "ef_construct" to 128
-            )
-        )
         try {
-            webClient.put()
-                .uri("${props.url}/collections/${props.collection}")
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(Void::class.java)
-                .retryWhen(defaultRetryPolicy())
-                .block()
+            qdrantHttpClient.createCollection(vectorSize)
             log.info("Created Qdrant collection '{}' (size={}, distance=Cosine)", props.collection, vectorSize)
         } catch (e: Exception) {
             throw VectorStoreUnavailable("Cannot create Qdrant collection at ${props.url}", mapOf("cause" to e.toString()))
@@ -94,12 +64,7 @@ class QdrantVectorStoreService(
 
     private fun deleteCollection() {
         try {
-            webClient.delete()
-                .uri("${props.url}/collections/${props.collection}")
-                .retrieve()
-                .bodyToMono(Void::class.java)
-                .retryWhen(defaultRetryPolicy())
-                .block()
+            qdrantHttpClient.deleteCollection()
         } catch (e: Exception) {
             log.warn("Failed deleting collection {}: {}", props.collection, e.toString())
         }
@@ -118,34 +83,16 @@ class QdrantVectorStoreService(
                 points.size, firstPoint.vector.size, firstPoint.id)
         }
 
-        val upsertReq = QdrantUpsertRequest(
-            points = points.map {
-                QdrantUpsertPoint(
-                    id = it.id,
-                    vector = it.vector.toList(),
-                    payload = it.payload
-                )
-            }
-        )
+        val upsertPoints = points.map {
+            QdrantUpsertPoint(
+                id = it.id,
+                vector = it.vector.toList(),
+                payload = it.payload
+            )
+        }
+
         try {
-            webClient.put()
-                .uri("${props.url}/collections/${props.collection}/points?wait=true")
-                .bodyValue(upsertReq)
-                .retrieve()
-                .bodyToMono(QdrantOpResult::class.java)
-                .doOnError { error ->
-                    if (error is org.springframework.web.reactive.function.client.WebClientResponseException) {
-                        log.error("Qdrant upsert error BEFORE retry: status={}, body={}, points_count={}, first_point_id={}, vector_size={}",
-                            error.statusCode.value(),
-                            error.responseBodyAsString.take(500),
-                            points.size,
-                            points.firstOrNull()?.id,
-                            points.firstOrNull()?.vector?.size
-                        )
-                    }
-                }
-                .retryWhen(defaultRetryPolicy())
-                .block()
+            qdrantHttpClient.upsertPoints(upsertPoints)
         } catch (e: org.springframework.web.reactive.function.client.WebClientResponseException) {
             log.error("Qdrant upsert failed with status={}, body={}, points_count={}, first_point_id={}, vector_size={}",
                 e.statusCode.value(),
@@ -169,18 +116,8 @@ class QdrantVectorStoreService(
     }
 
     override fun search(vector: FloatArray, topK: Int): List<RetrievedChunk> {
-        val req = QdrantSearchRequest(
-            vector = vector.toList(),
-            limit = topK
-        )
         val resp = try {
-            webClient.post()
-                .uri("${props.url}/collections/${props.collection}/points/search")
-                .bodyValue(req)
-                .retrieve()
-                .bodyToMono(QdrantSearchResponse::class.java)
-                .retryWhen(defaultRetryPolicy())
-                .block() ?: QdrantSearchResponse(result = emptyList())
+            qdrantHttpClient.searchPoints(vector.toList(), topK)
         } catch (e: Exception) {
             throw VectorStoreUnavailable("Qdrant search failed", mapOf("cause" to e.toString()))
         }
@@ -197,15 +134,9 @@ class QdrantVectorStoreService(
 
     override fun getById(id: String): RetrievedChunk? {
         val payloadFields = listOf("original_text", "chunk_index", "source")
-        val req = mapOf("filter" to mapOf("must" to listOf(mapOf("has_id" to listOf(id)))), "with_payload" to payloadFields)
+        val filter = mapOf("must" to listOf(mapOf("has_id" to listOf(id))))
         val resp = try {
-            webClient.post()
-                .uri("${props.url}/collections/${props.collection}/points/scroll")
-                .bodyValue(req)
-                .retrieve()
-                .bodyToMono(QdrantScrollResponse::class.java)
-                .retryWhen(defaultRetryPolicy())
-                .block()
+            qdrantHttpClient.scrollPoints(filter, payloadFields)
         } catch (e: Exception) {
             throw VectorStoreUnavailable("Qdrant getById failed", mapOf("cause" to e.toString(), "id" to id))
         }
@@ -216,34 +147,3 @@ class QdrantVectorStoreService(
         return RetrievedChunk(id = first.id?.toString() ?: id, text = text, score = 1.0, chunkIndex = chunkIndex, source = source)
     }
 }
-
-// --- Qdrant DTOs ---
-private data class QdrantCollectionInfo(val result: QdrantCollectionResult? = null)
-private data class QdrantCollectionResult(val vectors: QdrantVectors? = null)
-private data class QdrantVectors(val size: Int? = null, val distance: String? = null)
-
-private data class QdrantUpsertRequest(val points: List<QdrantUpsertPoint>)
-private data class QdrantUpsertPoint(
-    val id: Any,
-    val vector: List<Float>,
-    val payload: Map<String, Any?>
-)
-private data class QdrantOpResult(val status: String? = null)
-
-private data class QdrantSearchRequest(
-    val vector: List<Float>,
-    val limit: Int,
-    val with_payload: Boolean = true
-)
-private data class QdrantSearchResponse(val result: List<QdrantScoredPoint> = emptyList())
-private data class QdrantScoredPoint(
-    val id: Any? = null,
-    val score: Double? = null,
-    val payload: Map<String, Any?>? = null
-)
-
-private data class QdrantScrollResponse(val result: List<QdrantPointPayload> = emptyList())
-private data class QdrantPointPayload(
-    val id: Any? = null,
-    val payload: Map<String, Any?>? = null
-)
