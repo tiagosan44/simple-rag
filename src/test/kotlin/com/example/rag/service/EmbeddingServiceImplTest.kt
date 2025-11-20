@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 
 class EmbeddingServiceImplTest {
 
-    private val svc = EmbeddingServiceImpl(OpenAIProps(), org.springframework.web.reactive.function.client.WebClient.create())
+    private val svc = EmbeddingServiceImpl(OpenAIProps(), OpenAIClient(OpenAIProps(), org.springframework.web.reactive.function.client.WebClient.create()))
 
     @Test
     fun `embedText returns deterministic 1536-dim normalized vector`() {

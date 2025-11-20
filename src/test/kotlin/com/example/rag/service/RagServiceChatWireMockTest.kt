@@ -35,6 +35,7 @@ class RagServiceChatWireMockTest {
         val baseUrl = "http://localhost:${wm.port()}"
         val webClient = WebClient.builder().build()
         val props = OpenAIProps(apiKey = "test-key", llmModel = "gpt-4o-mini", baseUrl = baseUrl)
+        val openAIClient = OpenAIClient(props, webClient)
 
         // Simple vector store stub that returns one chunk
         val vs = object : VectorStoreService {
@@ -54,7 +55,7 @@ class RagServiceChatWireMockTest {
             )
         }
 
-        val rag = RagServiceImpl(embedding, vs, props, webClient)
+        val rag = RagServiceImpl(embedding, vs, props, openAIClient)
         return rag to vs
     }
 

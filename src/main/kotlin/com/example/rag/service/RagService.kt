@@ -15,7 +15,7 @@ class RagServiceImpl(
     private val embeddingService: EmbeddingService,
     private val vectorStoreService: VectorStoreService,
     private val openAIProps: OpenAIProps,
-    private val webClient: org.springframework.web.reactive.function.client.WebClient
+    private val openAIClient: OpenAIClient
 ) : RagService {
 
     override fun answer(question: String, topK: Int, temperature: Double): AskResponse {
@@ -25,7 +25,7 @@ class RagServiceImpl(
 
         val prompt = buildPrompt(question, chunks.map { it.text })
 
-        val llm = callOpenAIChat(prompt, temperature)
+        val llm = openAIClient.callOpenAIChat(prompt, temperature)
         val answer = llm.messageContent ?: run {
             if (chunks.isNotEmpty()) {
                 val inlineCitations = chunks.take(3).joinToString(" ") { "[${it.id}]" }
@@ -61,45 +61,5 @@ class RagServiceImpl(
         sb.append("Question: ").append(question).append("\n")
         sb.append("Provide concise answer and cite source ids.\n")
         return sb.toString()
-    }
-
-    private fun callOpenAIChat(prompt: String, temperature: Double): LlmResult {
-        if (openAIProps.apiKey.isBlank()) {
-            return LlmResult(messageContent = null, raw = null, model = openAIProps.llmModel, usage = null)
-        }
-        val req = OpenAIChatRequest(
-            model = openAIProps.llmModel,
-            temperature = temperature,
-            max_tokens = openAIProps.maxTokens,
-            messages = listOf(OpenAIMessage(role = "user", content = prompt))
-        )
-        return try {
-            val resp = webClient.post()
-                .uri("${openAIProps.baseUrl}/chat/completions")
-                .header("Authorization", "Bearer ${openAIProps.apiKey}")
-                .header("Content-Type", "application/json")
-                .bodyValue(req)
-                .retrieve()
-                .bodyToMono(OpenAIChatResponse::class.java)
-                .retryWhen(com.example.rag.util.defaultRetryPolicy())
-                .block()
-            val raw = resp?.let { com.fasterxml.jackson.module.kotlin.jacksonObjectMapper().writeValueAsString(it) }
-            val content = resp?.choices?.firstOrNull()?.message?.content
-            val usage = resp?.usage?.let { com.example.rag.model.Usage(it.prompt_tokens ?: 0, it.completion_tokens ?: 0, it.total_tokens ?: 0) }
-            val model = resp?.model
-            LlmResult(messageContent = content, raw = raw, model = model, usage = usage)
-        } catch (e: org.springframework.web.reactive.function.client.WebClientResponseException) {
-            throw com.example.rag.error.LlmProviderUnavailable(
-                "LLM provider returned ${e.statusCode.value()} ${e.statusText}",
-                mapOf("status" to e.statusCode.value(), "body" to e.responseBodyAsString.take(500))
-            )
-        } catch (e: org.springframework.web.reactive.function.client.WebClientRequestException) {
-            throw com.example.rag.error.LlmProviderUnavailable(
-                "LLM provider request failed: ${e.rootCause?.javaClass?.simpleName ?: e.javaClass.simpleName}",
-                mapOf("cause" to (e.rootCause?.message ?: e.message))
-            )
-        } catch (e: Exception) {
-            throw com.example.rag.error.LlmProviderUnavailable("LLM provider error", mapOf("error" to e.toString()))
-        }
     }
 }
