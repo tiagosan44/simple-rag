@@ -5,6 +5,7 @@ import com.example.rag.error.GlobalExceptionHandler
 import com.example.rag.error.VectorStoreUnavailable
 import com.example.rag.service.EmbeddingService
 import com.example.rag.service.RagService
+import com.example.rag.service.VectorStoreService
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 import org.springframework.beans.factory.annotation.Autowired
@@ -26,6 +27,9 @@ class ErrorMappingTest {
 
     @MockBean
     lateinit var embeddingService: EmbeddingService
+
+    @MockBean
+    lateinit var vectorStoreService: VectorStoreService
 
     @Test
     fun `embed endpoint with EmbeddingProviderUnavailable returns 503`() {
