@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
-import reactor.core.publisher.Mono
+import org.springframework.web.bind.support.WebExchangeBindException
 import java.util.*
 
 @ControllerAdvice
@@ -26,6 +26,21 @@ class GlobalExceptionHandler {
             trace_id = traceId
         )
         log.debug("Validation error trace_id={} details={}", traceId, details)
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ErrorResponse(body))
+    }
+
+    @ExceptionHandler(WebExchangeBindException::class)
+    fun handleWebExchangeBindException(ex: WebExchangeBindException): ResponseEntity<ErrorResponse> {
+        val traceId = UUID.randomUUID().toString()
+        val fieldError = ex.bindingResult.fieldErrors.firstOrNull()
+        val message = fieldError?.defaultMessage ?: "Validation failed"
+        val body = ErrorBody(
+            code = ErrorCode.VALIDATION_ERROR.name,
+            message = message,
+            details = null,
+            trace_id = traceId
+        )
+        log.debug("Validation error trace_id={} field={} message={}", traceId, fieldError?.field, message)
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ErrorResponse(body))
     }
 

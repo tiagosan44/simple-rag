@@ -5,20 +5,20 @@ import jakarta.validation.constraints.NotBlank
 // Requests
 
 data class AskRequest(
-    @field:NotBlank(message = "question must not be blank")
+    @field:NotBlank(message = "Question must not be blank")
     val question: String,
     val top_k: Int = 4,
     val temperature: Double = 0.0
 )
 
 data class EmbedRequest(
-    @field:NotBlank(message = "text must not be blank")
+    @field:NotBlank(message = "Text must not be blank")
     val text: String,
     val debug: Boolean = false
 )
 
 data class SearchRequest(
-    @field:NotBlank(message = "query must not be blank")
+    @field:NotBlank(message = "Query must not be blank")
     val query: String,
     val top_k: Int = 5
 )

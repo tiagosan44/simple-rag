@@ -9,6 +9,7 @@ import com.example.rag.model.*
 import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Service
+
 /**
  * Qdrant REST-backed implementation of VectorStoreService.
  * Uses cosine distance with normalized 0..1 scores.
