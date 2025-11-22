@@ -49,7 +49,8 @@ class QdrantVectorStoreService(
             }
         } catch (e: Exception) {
             if (e is VectorStoreUnavailable) throw e
-            throw VectorStoreUnavailable("Failed verifying Qdrant collection", mapOf("error" to e.toString()))
+            log.error("Failed verifying Qdrant collection", e)
+            throw VectorStoreUnavailable("Failed verifying Qdrant collection", mapOf("cause" to e.message))
         }
     }
 
@@ -58,7 +59,8 @@ class QdrantVectorStoreService(
             qdrantHttpClient.createCollection(vectorSize)
             log.info("Created Qdrant collection '{}' (size={}, distance=Cosine)", props.collection, vectorSize)
         } catch (e: Exception) {
-            throw VectorStoreUnavailable("Cannot create Qdrant collection at ${props.url}", mapOf("cause" to e.toString()))
+            log.error("Cannot create Qdrant collection", e)
+            throw VectorStoreUnavailable("Cannot create Qdrant collection at ${props.url}", mapOf("cause" to e.message))
         }
     }
 
@@ -66,7 +68,7 @@ class QdrantVectorStoreService(
         try {
             qdrantHttpClient.deleteCollection()
         } catch (e: Exception) {
-            log.warn("Failed deleting collection {}: {}", props.collection, e.toString())
+            log.warn("Failed deleting collection: {}", props.collection, e)
         }
     }
 
@@ -77,10 +79,9 @@ class QdrantVectorStoreService(
         points.firstOrNull()?.let { firstPoint ->
             if (firstPoint.vector.isEmpty()) {
                 log.error("Cannot upsert point with empty vector: id={}", firstPoint.id)
-                throw VectorStoreUnavailable("Point has empty vector", mapOf("point_id" to firstPoint.id.toString()))
+                throw VectorStoreUnavailable("Point has empty vector", mapOf("point_id" to firstPoint.id))
             }
-            log.debug("Upserting {} points, first vector size={}, first_id={}",
-                points.size, firstPoint.vector.size, firstPoint.id)
+            log.debug("Upserting {} points, vector_size={}", points.size, firstPoint.vector.size)
         }
 
         val upsertPoints = points.map {
@@ -94,24 +95,18 @@ class QdrantVectorStoreService(
         try {
             qdrantHttpClient.upsertPoints(upsertPoints)
         } catch (e: org.springframework.web.reactive.function.client.WebClientResponseException) {
-            log.error("Qdrant upsert failed with status={}, body={}, points_count={}, first_point_id={}, vector_size={}",
-                e.statusCode.value(),
-                e.responseBodyAsString.take(500),
-                points.size,
-                points.firstOrNull()?.id,
-                points.firstOrNull()?.vector?.size
-            )
+            log.error("Qdrant upsert failed: status={}", e.statusCode.value())
             throw VectorStoreUnavailable(
                 "Qdrant upsert failed: ${e.statusCode.value()} ${e.statusText}",
                 mapOf(
                     "status" to e.statusCode.value(),
-                    "body" to e.responseBodyAsString.take(500),
+                    "body" to e.responseBodyAsString.take(200),
                     "points_count" to points.size
                 )
             )
         } catch (e: Exception) {
-            log.error("Qdrant upsert failed with unexpected error", e)
-            throw VectorStoreUnavailable("Qdrant upsert failed", mapOf("cause" to e.toString()))
+            log.error("Qdrant upsert failed", e)
+            throw VectorStoreUnavailable("Qdrant upsert failed", mapOf("cause" to e.message))
         }
     }
 
@@ -119,7 +114,8 @@ class QdrantVectorStoreService(
         val resp = try {
             qdrantHttpClient.searchPoints(vector.toList(), topK)
         } catch (e: Exception) {
-            throw VectorStoreUnavailable("Qdrant search failed", mapOf("cause" to e.toString()))
+            log.error("Qdrant search failed", e)
+            throw VectorStoreUnavailable("Qdrant search failed", mapOf("cause" to e.message))
         }
 
         return resp.result.map { r ->
@@ -138,7 +134,8 @@ class QdrantVectorStoreService(
         val resp = try {
             qdrantHttpClient.scrollPoints(filter, payloadFields)
         } catch (e: Exception) {
-            throw VectorStoreUnavailable("Qdrant getById failed", mapOf("cause" to e.toString(), "id" to id))
+            log.error("Qdrant getById failed: id={}", id, e)
+            throw VectorStoreUnavailable("Qdrant getById failed", mapOf("cause" to e.message, "id" to id))
         }
         val first = resp?.result?.firstOrNull() ?: return null
         val text = (first.payload?.get("original_text") as? String) ?: ""

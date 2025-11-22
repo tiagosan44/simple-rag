@@ -2,14 +2,11 @@ package com.example.rag.service
 
 import com.example.rag.config.OpenAIProps
 import com.example.rag.model.EmbeddingResult
-import com.example.rag.model.*
-import com.example.rag.util.defaultRetryPolicy
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.security.MessageDigest
 import java.time.Instant
 import java.time.format.DateTimeFormatter
-import kotlin.math.abs
 
 interface EmbeddingService {
     fun embedText(text: String): EmbeddingResult
@@ -18,7 +15,7 @@ interface EmbeddingService {
 @Service
 class EmbeddingServiceImpl(
     private val openAIProps: OpenAIProps,
-    private val webClient: org.springframework.web.reactive.function.client.WebClient
+    private val openAIClient: OpenAIClient
 ) : EmbeddingService {
     private val log = LoggerFactory.getLogger(EmbeddingServiceImpl::class.java)
 
@@ -46,12 +43,12 @@ class EmbeddingServiceImpl(
                 log.debug("OPENAI_API_KEY not set, using fallback embedding")
                 fallbackEmbedding(text, now)
             } else {
-                val result = callOpenAIEmbedding(text)
+                val result = openAIClient.callOpenAIEmbedding(text)
                 synchronized(cache) { cache[text] = now to result }
                 result
             }
         } catch (e: Exception) {
-            log.warn("OpenAI embedding failed, using fallback. cause={}", e.toString())
+            log.warn("OpenAI embedding failed, using fallback", e)
             val res = fallbackEmbedding(text, now)
             synchronized(cache) { cache[text] = now to res }
             res
@@ -65,33 +62,6 @@ class EmbeddingServiceImpl(
             vector = vector,
             model = openAIProps.embeddingModel,
             createdAtIso = DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochMilli(nowMillis))
-        )
-    }
-
-    private fun callOpenAIEmbedding(text: String): EmbeddingResult {
-        val req = mapOf(
-            "model" to openAIProps.embeddingModel,
-            "input" to text
-        )
-        val start = System.currentTimeMillis()
-        val resp = webClient.post()
-            .uri("${openAIProps.baseUrl}/embeddings")
-            .header("Authorization", "Bearer ${openAIProps.apiKey}")
-            .header("Content-Type", "application/json")
-            .bodyValue(req)
-            .retrieve()
-            .bodyToMono(OpenAIEmbeddingResponse::class.java)
-            .retryWhen(defaultRetryPolicy())
-            .block() ?: throw RuntimeException("Empty response from OpenAI embeddings")
-
-        if (resp.data.isEmpty()) throw RuntimeException("No embedding data")
-        val vector = resp.data[0].embedding.map { it.toFloat() }.toFloatArray()
-        val now = if (resp.created != null) resp.created!! * 1000L else start
-        return EmbeddingResult(
-            id = generateId(text),
-            vector = vector,
-            model = resp.model ?: openAIProps.embeddingModel,
-            createdAtIso = DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochMilli(now))
         )
     }
 

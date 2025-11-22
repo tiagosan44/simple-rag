@@ -33,7 +33,7 @@ class EmbeddingServiceOpenAIWireMockTest {
     fun `success returns provider vector`() {
         val baseUrl = "http://localhost:${wm.port()}"
         val props = OpenAIProps(apiKey = "test-key", embeddingModel = "text-embedding-3-small", baseUrl = baseUrl)
-        val svc = EmbeddingServiceImpl(props, WebClient.builder().build())
+        val svc = EmbeddingServiceImpl(props, OpenAIClient(props, WebClient.builder().build()))
 
         val vector = List(1536) { 0.001 * (it + 1) }
         wm.stubFor(post(urlEqualTo("/embeddings")).willReturn(
@@ -59,7 +59,7 @@ class EmbeddingServiceOpenAIWireMockTest {
     fun `failure falls back to deterministic embedding`() {
         val baseUrl = "http://localhost:${wm.port()}"
         val props = OpenAIProps(apiKey = "test-key", embeddingModel = "text-embedding-3-small", baseUrl = baseUrl)
-        val svc = EmbeddingServiceImpl(props, WebClient.builder().build())
+        val svc = EmbeddingServiceImpl(props, OpenAIClient(props, WebClient.builder().build()))
 
         wm.stubFor(post(urlEqualTo("/embeddings")).willReturn(
             aResponse().withStatus(503)

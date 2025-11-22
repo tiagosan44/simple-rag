@@ -36,7 +36,7 @@ internal data class OpenAIUsage(
 /**
  * Internal result DTO for LLM operations
  */
-internal data class LlmResult(
+data class LlmResult(
     val messageContent: String?,
     val raw: String?,
     val model: String?,
